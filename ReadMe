@@ -1,0 +1,23 @@
+# 🎓 CRUD Application with FastAPI
+
+ Overview
+This project is a simple **CRUD API** built with **FastAPI** and **SQLite**.  
+It manages two entities:
+- **Students** (id, name, email)
+- **Courses** (id, title, description, linked to a student)
+
+##  Setup Instructions
+```bash
+# Clone repository
+git clone <your_repo_url>
+cd fastapi-crud-app
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate   # (Windows: venv\Scripts\activate)
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the application
+uvicorn main:app --reload
