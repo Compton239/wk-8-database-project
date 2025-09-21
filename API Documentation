@@ -1,0 +1,28 @@
+API Documentation
+
+Once running, open in browser:
+
+Swagger UI → http://127.0.0.1:8000/docs
+
+ReDoc → http://127.0.0.1:8000/redoc
+
+ API Endpoints
+Students
+
+POST /students/ → Create a student
+
+GET /students/ → List all students
+
+PUT /students/{id} → Update student info
+
+DELETE /students/{id} → Delete student
+
+Courses
+
+POST /courses/ → Create a course
+
+GET /courses/ → List all courses
+
+ Database
+
+SQLite is used (app.db) and is auto-created on first run.
