@@ -1,0 +1,137 @@
+fastapi-crud-app/
+│
+├── main.py          # FastAPI entry point with routes
+├── models.py        # Database models
+├── database.py      # DB engine and session setup
+├── schemas.py       # Pydantic validation schemas
+├── requirements.txt # Python dependencies
+├── README.md        # Project documentation
+└── app.db           # SQLite database (auto-created after first run)
+
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+
+from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship, declarative_base
+
+Base = declarative_base()
+
+class Student(Base):
+    __tablename__ = "students"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    courses = relationship("Course", back_populates="student")
+
+class Course(Base):
+    __tablename__ = "courses"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    description = Column(String)
+    student_id = Column(Integer, ForeignKey("students.id"))
+    student = relationship("Student", back_populates="courses")
+
+    from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from models import Base
+
+DATABASE_URL = "sqlite:///./app.db"
+
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+def init_db():
+    Base.metadata.create_all(bind=engine)
+
+from pydantic import BaseModel
+
+class CourseBase(BaseModel):
+    title: str
+    description: str | None = None
+
+class CourseCreate(CourseBase):
+    pass
+
+class Course(CourseBase):
+    id: int
+    class Config:
+        orm_mode = True
+
+
+class StudentBase(BaseModel):
+    name: str
+    email: str
+
+class StudentCreate(StudentBase):
+    pass
+
+class Student(StudentBase):
+    id: int
+    courses: list[Course] = []
+    class Config:
+        orm_mode = True
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+from database import SessionLocal, init_db
+import models, schemas
+
+app = FastAPI(title="CRUD App with FastAPI")
+init_db()
+
+# Dependency
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# --- STUDENTS ---
+@app.post("/students/", response_model=schemas.Student)
+def create_student(student: schemas.StudentCreate, db: Session = Depends(get_db)):
+    db_student = models.Student(name=student.name, email=student.email)
+    db.add(db_student)
+    db.commit()
+    db.refresh(db_student)
+    return db_student
+
+@app.get("/students/", response_model=list[schemas.Student])
+def read_students(db: Session = Depends(get_db)):
+    return db.query(models.Student).all()
+
+@app.put("/students/{student_id}", response_model=schemas.Student)
+def update_student(student_id: int, student: schemas.StudentCreate, db: Session = Depends(get_db)):
+    db_student = db.query(models.Student).filter(models.Student.id == student_id).first()
+    if not db_student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    db_student.name = student.name
+    db_student.email = student.email
+    db.commit()
+    db.refresh(db_student)
+    return db_student
+
+@app.delete("/students/{student_id}")
+def delete_student(student_id: int, db: Session = Depends(get_db)):
+    db_student = db.query(models.Student).filter(models.Student.id == student_id).first()
+    if not db_student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    db.delete(db_student)
+    db.commit()
+    return {"message": "Student deleted"}
+
+# --- COURSES ---
+@app.post("/courses/", response_model=schemas.Course)
+def create_course(course: schemas.CourseCreate, db: Session = Depends(get_db)):
+    db_course = models.Course(title=course.title, description=course.description)
+    db.add(db_course)
+    db.commit()
+    db.refresh(db_course)
+    return db_course
+
+@app.get("/courses/", response_model=list[schemas.Course])
+def read_courses(db: Session = Depends(get_db)):
+    return db.query(models.Course).all()
+
+
